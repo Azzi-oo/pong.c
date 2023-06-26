@@ -1,0 +1,201 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+#define TRUE 1
+#define FALSE 0
+
+#define BACKGROUND_CHAR '#'
+#define ROCKET_CHAR '|'
+#define BALL_CHAR '@'
+#define SPACE ' '
+
+// Screen size
+#define WIDTH 80
+#define HEIGHT 25
+
+// Array position
+#define ROCKET_A 0
+#define ROCKET_B 1
+#define BALL 2
+
+// Coordinates
+#define X 0
+#define Y 1
+#define DX 2
+#define DY 3
+#define LEFT -1
+#define RIGHT 1
+#define DOWN -1
+#define UP 1
+
+void draw(char buf_graph[HEIGHT][WIDTH], int coordinates[3][4], int a_score, int b_score);
+int goal(int coordinates[3][4], int *a_score, int *b_score);
+void update(int coordinates[3][4], int *a_score, int *b_score, int *game_over);
+int RocketBounce(int coordinates[3][4]);
+int WallBounce(int coordinates[3][4]);
+void InitCoordinates(int coordinates[3][4]);
+
+int main(void) {
+    char buf_graph[HEIGHT][WIDTH];
+
+    int coordinates[3][4];
+    InitCoordinates(coordinates);
+
+    int game_over = FALSE;
+    int a_score = 20;
+    int b_score = 0;
+
+    // Game loop
+    while (game_over == FALSE) {
+        draw(buf_graph, coordinates, a_score, b_score);
+        update(coordinates, &a_score, &b_score, &game_over);
+    }
+
+    system("clear");
+    if (a_score == 21) {
+        printf("WINNER: Player A. Press <Enter> to exit.");
+    } else {
+        printf("WINNER: Player B. Press <Enter> to exit.");
+    }
+    getchar();
+    system("tput rmcup");
+
+    return 0;
+}
+
+void draw(char buf[HEIGHT][WIDTH], int coordinates[3][4], int a_score, int b_score) {
+    system("tput smcup");
+    system("clear");
+
+    for (int h = 0; h != HEIGHT; h++) {
+        for (int w = 0; w != WIDTH; w++) {
+            if (h == 0 || h == HEIGHT - 1)
+                buf[h][w] = BACKGROUND_CHAR;
+            else
+                buf[h][w] = SPACE;
+        }
+    }
+
+    for (int h = 0; h != HEIGHT; h++) {
+        for (int w = 0; w != WIDTH; w++) {
+            if (coordinates[ROCKET_A][X] == w && coordinates[ROCKET_A][Y] == h) {
+                buf[h][w] = ROCKET_CHAR;
+                if (h == 1)
+                    buf[h + 1][w] = ROCKET_CHAR;
+                else if (h == HEIGHT - 2)
+                    buf[h - 1][w] = ROCKET_CHAR;
+                else {
+                    buf[h + 1][w] = ROCKET_CHAR;
+                    buf[h - 1][w] = ROCKET_CHAR;
+                }
+            } else if (coordinates[ROCKET_B][X] == w && coordinates[ROCKET_B][Y] == h) {
+                buf[h][w] = ROCKET_CHAR;
+                if (h == 1)
+                    buf[h + 1][w] = ROCKET_CHAR;
+                else if (h == HEIGHT - 2)
+                    buf[h - 1][w] = ROCKET_CHAR;
+                else {
+                    buf[h + 1][w] = ROCKET_CHAR;
+                    buf[h - 1][w] = ROCKET_CHAR;
+                }
+            } else if (coordinates[BALL][X] == w && coordinates[BALL][Y] == h) {
+                buf[h][w] = BALL_CHAR;
+            }
+        }
+    }
+
+    for (int h = 0; h != HEIGHT; h++) {
+        for (int w = 0; w != WIDTH; w++) {
+            putchar(buf[h][w]);
+        }
+        putchar('\n');
+    }
+
+    printf("\nPlayer A: %d\nPlayer B: %d\n", a_score, b_score);
+}
+
+void update(int coordinates[3][4], int *a_score, int *b_score, int *game_over) {
+    // Handle input
+    char input[64];
+    if (fgets(input, 64, stdin) != NULL) {
+        char c = input[0];
+
+        if (c == 'a' || c == 'z' || c == 'k' || c == 'm' || c == ' ') {
+            coordinates[BALL][X] += coordinates[BALL][DX];
+            coordinates[BALL][Y] += coordinates[BALL][DY];
+
+            if (c == 'a' && coordinates[ROCKET_A][Y] != 2)
+                coordinates[ROCKET_A][Y]--;
+            else if (c == 'z' && coordinates[ROCKET_A][Y] != HEIGHT - 3)
+                coordinates[ROCKET_A][Y]++;
+            else if (c == 'k' && coordinates[ROCKET_B][Y] != 2)
+                coordinates[ROCKET_B][Y]--;
+            else if (c == 'm' && coordinates[ROCKET_B][Y] != HEIGHT - 3)
+                coordinates[ROCKET_B][Y]++;
+
+            if (WallBounce(coordinates)) {
+                coordinates[BALL][DY] *= -1;
+                coordinates[BALL][Y] += coordinates[BALL][DY] * 2;
+            }
+            if (RocketBounce(coordinates)) {
+                coordinates[BALL][DX] *= -1;
+                coordinates[BALL][X] += coordinates[BALL][DX] * 2;
+            }
+            if (goal(coordinates, a_score, b_score)) {
+                if (*a_score == 21 || *b_score == 21) {
+                    *game_over = TRUE;
+                } else {
+                    InitCoordinates(coordinates);
+                }
+            }
+        }
+    }
+}
+
+int goal(int coordinates[3][4], int *a_score, int *b_score) {
+    int status_code = FALSE;
+    if (coordinates[BALL][X] == WIDTH) {
+        *a_score += 1;
+        status_code = TRUE;
+    } else if (coordinates[BALL][X] == -1) {
+        *b_score += 1;
+        status_code = TRUE;
+    }
+    return status_code;
+}
+
+int RocketBounce(int coordinates[3][4]) {
+    if ((coordinates[BALL][X] == coordinates[ROCKET_A][X] &&
+         coordinates[BALL][Y] == coordinates[ROCKET_A][Y]) ||
+        (coordinates[BALL][X] == coordinates[ROCKET_A][X] &&
+         coordinates[BALL][Y] == coordinates[ROCKET_A][Y] + 1) ||
+        (coordinates[BALL][X] == coordinates[ROCKET_A][X] &&
+         coordinates[BALL][Y] == coordinates[ROCKET_A][Y] - 1) ||
+        (coordinates[BALL][X] == coordinates[ROCKET_B][X] &&
+         coordinates[BALL][Y] == coordinates[ROCKET_B][Y]) ||
+        (coordinates[BALL][X] == coordinates[ROCKET_B][X] &&
+         coordinates[BALL][Y] == coordinates[ROCKET_B][Y] + 1) ||
+        (coordinates[BALL][X] == coordinates[ROCKET_B][X] &&
+         coordinates[BALL][Y] == coordinates[ROCKET_B][Y] - 1))
+        return TRUE;
+    return FALSE;
+}
+
+int WallBounce(int coordinates[3][4]) {
+    if (coordinates[BALL][Y] == 0 || coordinates[BALL][Y] == HEIGHT - 1) return TRUE;
+    return FALSE;
+}
+
+void InitCoordinates(int coordinates[3][4]) {
+    coordinates[ROCKET_A][X] = 0;
+    coordinates[ROCKET_A][Y] = HEIGHT / 2;
+
+    coordinates[ROCKET_B][X] = WIDTH - 1;
+    coordinates[ROCKET_B][Y] = HEIGHT / 2;
+
+    coordinates[BALL][X] = WIDTH / 2;
+    coordinates[BALL][Y] = HEIGHT / 2;
+
+    coordinates[BALL][DX] = RIGHT;
+    coordinates[BALL][DY] = UP;
+}
